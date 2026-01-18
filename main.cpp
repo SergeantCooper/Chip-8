@@ -2,6 +2,7 @@
 #include "chip8.h"
 #include <iostream>
 #include <string>
+#include <chrono>
 
 int main(int argc, char* argv[])
 {

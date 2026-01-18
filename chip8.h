@@ -1,9 +1,7 @@
 #pragma once
 #include <cstdint>
-#include <fstream>
+#include <memory>
 #include <random>
-#include <chrono>
-#include <filesystem>
 
 using uint = unsigned int;
 
@@ -118,7 +116,8 @@ public:
 
 private:
 	uint8_t registers[REGISTER_COUNT]{};
-	uint8_t* memory;
+    std::unique_ptr<uint8_t[]> memory;
+    std::unique_ptr<uint32_t[]> video;
 	uint16_t index_register{};
 	uint16_t pc{};
 	uint16_t stack[STACK_LEVELS]{};
@@ -126,7 +125,6 @@ private:
 	uint8_t delay_timer{};
 	uint8_t sound_timer{};
 	uint8_t keypad[KEY_COUNT]{};
-	uint32_t* video;
 	uint16_t opcode{};
 
 	std::mt19937 randGen;

@@ -1,16 +1,21 @@
 #include "chip8.h"
 #include <cassert>
+#include <cstring>
+#include <filesystem>
+#include <fstream>
 
 Chip8::Chip8()
-	:
+    :
+    memory(new uint8_t[MEMORY_SIZE]),
+    video(new uint32_t[VIDEO_WIDTH * VIDEO_HEIGHT]),
 	pc(START_ADDRESS), randGen(std::random_device{}()), randByte(0, 255U)
 {
-	memory = new uint8_t[MEMORY_SIZE];
-	video = new uint32_t[VIDEO_WIDTH * VIDEO_HEIGHT];
+    memset(memory.get(), 0, sizeof(uint8_t) * MEMORY_SIZE);
+    memset(video.get(), 0, sizeof(uint32_t) * VIDEO_WIDTH * VIDEO_HEIGHT);
 
 	for (unsigned int i = 0; i < FONTSET_SIZE; ++i)
 	{
-		memory[FONTSET_START_ADDRESS + i] = fontset[i];
+        memory.get()[FONTSET_START_ADDRESS + i] = fontset[i];
 	}
 
 
@@ -73,9 +78,9 @@ Chip8::Chip8()
 }
 
 Chip8::~Chip8()
-{	
-	delete[] video;
-	delete[] memory;
+{
+    video.reset();
+    memory.reset();
 }
 
 void Chip8::LoadROM(const char* fileName)
@@ -85,24 +90,22 @@ void Chip8::LoadROM(const char* fileName)
 	if (file.is_open() && file.good())
 	{
 		auto size = std::filesystem::file_size({ fileName });
-		char* buffer = new char[size];
+        std::unique_ptr<char> buffer(new char[size]);
 
-		file.read(buffer, size);
+        file.read(buffer.get(), size);
 		file.close();
 
 		for (uint i = 0; i < size; ++i)
 		{
-			memory[START_ADDRESS + i] = buffer[i];
+            memory.get()[START_ADDRESS + i] = buffer.get()[i];
 		}
-
-		delete[] buffer;
 	}
 
 }
 
 void Chip8::OP_00E0()
 {
-	memset(video, 0, sizeof(video));
+    memset(video.get(), 0, sizeof(uint32_t) * VIDEO_WIDTH * VIDEO_HEIGHT);
 }
 
 void Chip8::OP_00EE()
@@ -338,13 +341,13 @@ void Chip8::OP_Dxyn()
 
 	for (uint row = 0; row < sprite_height; row++)
 	{
-		uint8_t spriteByte = memory[index_register + row];
+        uint8_t spriteByte = memory.get()[index_register + row];
 
 		for (uint col = 0; col < 8; col++)
 		{
 			uint8_t sprite_pixel = (spriteByte) & (0x80u >> col);
 
-			uint32_t* screenPixel = &video[(yPos + row) * VIDEO_WIDTH + (xPos + col)];
+            uint32_t* screenPixel = &video.get()[(yPos + row) * VIDEO_WIDTH + (xPos + col)];
 
 			if (sprite_pixel)
 			{
@@ -498,13 +501,13 @@ void Chip8::OP_Fx33(){
 	uint8_t Vx = (opcode & 0x0F00u) >> 8u;
 	uint8_t value = registers[Vx];
 
-	memory[index_register + 2] = value % 10;
+    memory.get()[index_register + 2] = value % 10;
 	value /= 10;
 
-	memory[index_register + 1] = value % 10;
+    memory.get()[index_register + 1] = value % 10;
 	value /= 10;
 
-	memory[index_register] = value % 10;
+    memory.get()[index_register] = value % 10;
 
 
 }
@@ -513,7 +516,7 @@ void Chip8::OP_Fx55(){
 
 	for (uint8_t i = 0; i <= Vx; ++i)
 	{
-		memory[index_register + i] = registers[i];
+        memory.get()[index_register + i] = registers[i];
 	}
 
 
@@ -524,14 +527,14 @@ void Chip8::OP_Fx65(){
 
 	for (uint8_t i = 0; i <= Vx; ++i)
 	{
-		registers[i] = memory[index_register + i];
+        registers[i] = memory.get()[index_register + i];
 	}
 
 }
 
 uint32_t* Chip8::getVideo()
 {
-	return video;
+    return video.get();
 }
 
 uint8_t* Chip8::getKeypad()
@@ -541,7 +544,7 @@ uint8_t* Chip8::getKeypad()
 
 void Chip8::Cycle()
 {
-	opcode = (memory[pc] << 8u) | memory[pc + 1];
+    opcode = (memory.get()[pc] << 8u) | memory.get()[pc + 1];
 
 	pc += 2;
 
